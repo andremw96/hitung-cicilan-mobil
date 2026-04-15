@@ -187,9 +187,6 @@ export default function Compare() {
   const dpValueKey = (mode: CalcMode): keyof CalcInputs =>
     mode === "dp_percent" ? "dpPercent" : mode === "dp_amount" ? "dpAmount" : "totalDpInput";
 
-  const dpValueLabel = (mode: CalcMode) =>
-    mode === "dp_percent" ? "DP %" : mode === "dp_amount" ? "DP Murni" : "Total DP";
-
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">

@@ -2,6 +2,10 @@
 
 Kalkulator simulasi kredit kendaraan berbasis web untuk menghitung cicilan, down payment, dan total biaya pembiayaan. Dibangun dengan React + TypeScript + Tailwind CSS.
 
+## Pratinjau
+
+![Halaman kalkulator — Simulasi Kredit Mobil](docs/preview.png)
+
 ## Fitur
 
 ### Kalkulator
@@ -46,6 +50,32 @@ Buka `http://localhost:5173` di browser.
 npm run build
 npm run preview
 ```
+
+Build untuk GitHub Pages (subpath `/nama-repo/`) memakai variabel lingkungan:
+
+```bash
+VITE_BASE_URL=/hitung-cicilan-mobil/ npm run build
+```
+
+Tanpa `VITE_BASE_URL`, aset dilayani dari root (`/`) — cocok untuk Vercel, Netlify, atau domain sendiri.
+
+## Hosting
+
+### GitHub Pages (otomatis)
+
+Repositori ini menyertakan workflow [`.github/workflows/deploy-github-pages.yml`](.github/workflows/deploy-github-pages.yml) yang membangun situs dan menerbitkannya lewat GitHub Actions.
+
+1. Di GitHub: **Settings → Pages → Build and deployment**, pilih sumber **GitHub Actions** (bukan branch `gh-pages` manual).
+2. Push ke branch `master` atau `main`. Workflow **Deploy GitHub Pages** akan jalan dan mengunggah artefak `dist`.
+3. Setelah selesai, aplikasi tersedia di `https://<username>.github.io/hitung-cicilan-mobil/`.
+
+Jika nama repositori berubah, sesuaikan nilai `VITE_BASE_URL` di file workflow agar sama dengan subpath GitHub Pages Anda.
+
+### Vercel atau Netlify
+
+1. Hubungkan repositori GitHub ke [Vercel](https://vercel.com/) atau [Netlify](https://www.netlify.com/).
+2. Framework preset: **Vite**. Perintah build: `npm run build`, folder keluaran: **`dist`**.
+3. Jangan set `VITE_BASE_URL` di panel environment (biarkan kosong) agar routing dan aset memakai root domain proyek Anda.
 
 ## Struktur Halaman
 
