@@ -1,0 +1,64 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+dist-ssr
+build
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.development.local
+.env.production
+.env.production.local
+.env.staging
+*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Debug
+coverage
+*.lcov
+
+# Secrets & credentials
+*.pem
+*.key
+*.cert
+*.p12
+credentials.json
+serviceAccountKey.json
+firebase-adminsdk*.json
+
+# Hosting config (may contain tokens)
+.netlify
+.vercel
+.firebase
+
+# Cache
+.cache
+.parcel-cache
+*.tsbuildinfo
