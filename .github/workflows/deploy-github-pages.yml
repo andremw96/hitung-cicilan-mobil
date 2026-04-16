@@ -16,6 +16,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Required so "Environment secrets" under github-pages are available here.
+    # Repository secrets (repo Settings → Secrets) work without this line.
+    environment: github-pages
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

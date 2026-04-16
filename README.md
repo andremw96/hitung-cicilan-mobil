@@ -80,6 +80,3 @@ K = (1 + Rate × Tahun) / Bulan
 DP Murni = (Total - OTR×K - CoR×K - Asuransi - Admin - CreditLife - TJH) / (1 - K)
 ```
 
-## Lisensi
-
-MIT
