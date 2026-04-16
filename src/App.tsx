@@ -1,14 +1,64 @@
-import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
+import { BrowserRouter, Routes, Route, NavLink, Outlet, useNavigate } from "react-router-dom";
 import Calculator from "./pages/Calculator";
 import SavedList from "./pages/SavedList";
 import Compare from "./pages/Compare";
+import Welcome from "./pages/Welcome";
+import { useAuth } from "./context/AuthContext";
 
-function Layout({ children }: { children: React.ReactNode }) {
+function HeaderAccount() {
+  const { cloudEnabled, user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  if (!cloudEnabled) return null;
+
+  if (!user) {
+    return (
+      <div className="flex items-center gap-2 pl-2 border-l border-white/20 ml-1">
+        <NavLink
+          to="/welcome"
+          className="px-3 py-2 rounded-md text-xs font-semibold bg-white/15 text-white hover:bg-white/25 transition-colors whitespace-nowrap"
+        >
+          Masuk · Sinkronisasi data
+        </NavLink>
+      </div>
+    );
+  }
+
+  const meta = user.user_metadata as { login_label?: string } | undefined;
+  const displayName =
+    (typeof meta?.login_label === "string" && meta.login_label.trim()) ||
+    (user.email?.endsWith("@users.hitung-cicilan.local") ? user.email.split("@")[0] : user.email) ||
+    "Pengguna";
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/", { replace: true });
+  };
+
+  return (
+    <div className="flex items-center gap-2 pl-2 border-l border-white/20 ml-1">
+      <span className="text-xs text-slate-200 max-w-[140px] truncate hidden sm:inline" title={displayName}>
+        {displayName}
+      </span>
+      <button
+        type="button"
+        onClick={() => void handleSignOut()}
+        className="px-3 py-2 rounded-md text-xs font-semibold bg-white/10 text-white hover:bg-white/20 transition-colors"
+      >
+        Keluar
+      </button>
+    </div>
+  );
+}
+
+function Layout() {
+  const isLoggedIn = useAuth().user !== null;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <header className="bg-gradient-to-r from-maybank-dark to-maybank-blue text-white shadow-lg">
         <div className="max-w-6xl mx-auto px-4 py-5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-maybank-yellow flex items-center justify-center">
                 <svg className="w-6 h-6 text-maybank-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -17,53 +67,62 @@ function Layout({ children }: { children: React.ReactNode }) {
               </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight">Simulasi Kredit Mobil</h1>
-                <p className="text-sm text-slate-300">Kalkulator cicilan &amp; down payment</p>
+                <p className="text-sm text-slate-300">
+                  Kalkulator cicilan &amp; down payment
+                  {isLoggedIn && <span className="text-emerald-300"> · data tersimpan di cloud</span>}
+                  {!isLoggedIn && <span className="text-emerald-300"> · data tersimpan di browser</span>}
+                </p>
               </div>
             </div>
-            <nav className="flex gap-1 bg-white/10 rounded-lg p-1">
-              <NavLink
-                to="/"
-                end
-                className={({ isActive }) =>
-                  `px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                    isActive ? "bg-white/20 text-white" : "text-slate-300 hover:text-white"
-                  }`
-                }
-              >
-                Kalkulator
-              </NavLink>
-              <NavLink
-                to="/saved"
-                className={({ isActive }) =>
-                  `px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-1.5 ${
-                    isActive ? "bg-white/20 text-white" : "text-slate-300 hover:text-white"
-                  }`
-                }
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                </svg>
-                Tersimpan
-              </NavLink>
-              <NavLink
-                to="/compare"
-                className={({ isActive }) =>
-                  `px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-1.5 ${
-                    isActive ? "bg-white/20 text-white" : "text-slate-300 hover:text-white"
-                  }`
-                }
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Bandingkan
-              </NavLink>
-            </nav>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-end">
+              <nav className="flex gap-1 bg-white/10 rounded-lg p-1 flex-wrap">
+                <NavLink
+                  to="/"
+                  end
+                  className={({ isActive }) =>
+                    `px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      isActive ? "bg-white/20 text-white" : "text-slate-300 hover:text-white"
+                    }`
+                  }
+                >
+                  Kalkulator
+                </NavLink>
+                <NavLink
+                  to="/saved"
+                  className={({ isActive }) =>
+                    `px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-1.5 ${
+                      isActive ? "bg-white/20 text-white" : "text-slate-300 hover:text-white"
+                    }`
+                  }
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                  Tersimpan
+                </NavLink>
+                <NavLink
+                  to="/compare"
+                  className={({ isActive }) =>
+                    `px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-1.5 ${
+                      isActive ? "bg-white/20 text-white" : "text-slate-300 hover:text-white"
+                    }`
+                  }
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Bandingkan
+                </NavLink>
+              </nav>
+              <HeaderAccount />
+            </div>
           </div>
         </div>
       </header>
 
-      <main>{children}</main>
+      <main>
+        <Outlet />
+      </main>
 
       <footer className="border-t border-slate-200 mt-12">
         <div className="max-w-6xl mx-auto px-4 py-4 text-center text-xs text-slate-400">
@@ -76,19 +135,20 @@ function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const basename =
-    import.meta.env.BASE_URL.replace(/\/$/, '') === ''
+    import.meta.env.BASE_URL.replace(/\/$/, "") === ""
       ? undefined
-      : import.meta.env.BASE_URL.replace(/\/$/, '');
+      : import.meta.env.BASE_URL.replace(/\/$/, "");
 
   return (
     <BrowserRouter basename={basename}>
-      <Layout>
-        <Routes>
+      <Routes>
+        <Route path="/welcome" element={<Welcome />} />
+        <Route element={<Layout />}>
           <Route path="/" element={<Calculator />} />
           <Route path="/saved" element={<SavedList />} />
           <Route path="/compare" element={<Compare />} />
-        </Routes>
-      </Layout>
+        </Route>
+      </Routes>
     </BrowserRouter>
   );
 }

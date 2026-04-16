@@ -1,34 +1,53 @@
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  type SavedCalculation,
-  loadSavedCalculations,
-  deleteCalculation,
-  formatRupiah,
-} from "../types";
+import { formatRupiah } from "../types";
+import { useSimulations } from "../context/SimulationsContext";
+import { isCloudEnabled, buildCalculatorLoadUrl } from "../lib/cloudConfig";
 
 type SortKey = "date" | "name" | "otr" | "installment" | "totalDP" | "totalKeluar";
 type SortDir = "asc" | "desc";
 
 export default function SavedList() {
   const navigate = useNavigate();
-  const [calculations, setCalculations] = useState<SavedCalculation[]>(loadSavedCalculations);
+  const cloud = isCloudEnabled();
+  const { calculations, loading, error, usingCloud, deleteCalculation, importLocalToCloud } =
+    useSimulations();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
 
-  const handleDelete = useCallback((id: string) => {
-    deleteCalculation(id);
-    setCalculations(loadSavedCalculations());
-    setConfirmDeleteId(null);
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-  }, []);
+  const handleDelete = useCallback(
+    async (id: string) => {
+      try {
+        await deleteCalculation(id);
+        setConfirmDeleteId(null);
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "Gagal menghapus");
+      }
+    },
+    [deleteCalculation]
+  );
+
+  const handleImportLocal = useCallback(async () => {
+    setImportMsg(null);
+    setImportBusy(true);
+    const { imported, error: impErr } = await importLocalToCloud();
+    setImportBusy(false);
+    if (impErr) setImportMsg(impErr);
+    else if (imported === 0) {
+      setImportMsg("Data lokal sudah tersinkron ke cloud, atau belum ada data lokal di browser ini.");
+    }
+    else setImportMsg(`${imported} simulasi diimpor ke akun Anda.`);
+  }, [importLocalToCloud]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -108,6 +127,12 @@ export default function SavedList() {
     { key: "totalKeluar", label: "Total Keluar" },
   ];
 
+  if (usingCloud && loading && calculations.length === 0) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-16 text-center text-slate-500 text-sm">Memuat simulasi…</div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
       {/* Header */}
@@ -115,10 +140,27 @@ export default function SavedList() {
         <div>
           <h2 className="text-xl font-bold text-slate-800">Simulasi Tersimpan</h2>
           <p className="text-sm text-slate-400">
-            {calculations.length} simulasi disimpan di browser ini
+            {calculations.length} simulasi
+            {usingCloud
+              ? " di akun cloud Anda (sinkron antar perangkat)"
+              : cloud
+                ? " di browser ini — masuk untuk menyimpan salinan ke cloud"
+                : " di browser ini"}
           </p>
+          {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          {usingCloud && (
+            <button
+              type="button"
+              disabled={importBusy}
+              onClick={() => void handleImportLocal()}
+              className="py-2.5 px-4 rounded-lg font-semibold text-xs border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 transition-all disabled:opacity-50"
+            >
+              Sinkronkan data dari browser lokal
+            </button>
+          )}
+          {importMsg && <span className="text-xs text-slate-600 self-center sm:max-w-[200px]">{importMsg}</span>}
           {selectedIds.size >= 2 && (
             <button
               onClick={() => navigate(`/compare?ids=${[...selectedIds].join(",")}`)}
@@ -272,7 +314,8 @@ export default function SavedList() {
                     {/* Actions */}
                     <div className="flex gap-2 pt-3 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
                       <button
-                        onClick={() => window.open(window.location.origin + "/?load=" + calc.id, "_blank")}
+                        type="button"
+                        onClick={() => window.open(buildCalculatorLoadUrl(calc.id), "_blank")}
                         className="flex-1 py-2 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all border border-amber-200"
                       >
                         Buka

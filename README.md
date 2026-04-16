@@ -16,7 +16,10 @@ Kalkulator simulasi kredit kendaraan berbasis web untuk menghitung cicilan, down
 - Ringkasan bayar pertama dan total uang keluar selama masa kredit
 
 ### Simpan & Kelola
-- Simpan simulasi ke browser (localStorage) dengan nama
+- Tanpa Supabase: simpan ke browser (localStorage) dengan nama
+- Dengan Supabase (opsional): masuk lewat **Google**, **email/nama cepat** (tanpa magic link), atau **email/nama + kata sandi**; simulasi di cloud — sama di ponsel dan komputer
+- Halaman **Selamat datang / Masuk** (`/welcome`) untuk autentikasi
+- Impor sekali dari penyimpanan lokal ke akun (tombol di halaman Tersimpan)
 - Edit simulasi tersimpan atau simpan sebagai salinan baru
 - Cari dan urutkan simulasi berdasarkan tanggal, nama, OTR, cicilan, total DP, atau total keluar
 - Hapus simulasi dengan konfirmasi
@@ -34,6 +37,7 @@ Kalkulator simulasi kredit kendaraan berbasis web untuk menghitung cicilan, down
 - [Vite](https://vite.dev/) 6
 - [Tailwind CSS](https://tailwindcss.com/) 3
 - [React Router](https://reactrouter.com/) 7
+- [Supabase](https://supabase.com/) (opsional — Auth + Postgres untuk data tersimpan)
 
 ## Getting Started
 
@@ -51,36 +55,11 @@ npm run build
 npm run preview
 ```
 
-Build untuk GitHub Pages (subpath `/nama-repo/`) memakai variabel lingkungan:
-
-```bash
-VITE_BASE_URL=/hitung-cicilan-mobil/ npm run build
-```
-
-Tanpa `VITE_BASE_URL`, aset dilayani dari root (`/`) — cocok untuk Vercel, Netlify, atau domain sendiri.
-
-## Hosting
-
-### GitHub Pages (otomatis)
-
-Repositori ini menyertakan workflow [`.github/workflows/deploy-github-pages.yml`](.github/workflows/deploy-github-pages.yml) yang membangun situs dan menerbitkannya lewat GitHub Actions.
-
-1. Di GitHub: **Settings → Pages → Build and deployment**, pilih sumber **GitHub Actions** (bukan branch `gh-pages` manual).
-2. Push ke branch `master` atau `main`. Workflow **Deploy GitHub Pages** akan jalan dan mengunggah artefak `dist`.
-3. Setelah selesai, aplikasi tersedia di `https://<username>.github.io/hitung-cicilan-mobil/`.
-
-Jika nama repositori berubah, sesuaikan nilai `VITE_BASE_URL` di file workflow agar sama dengan subpath GitHub Pages Anda.
-
-### Vercel atau Netlify
-
-1. Hubungkan repositori GitHub ke [Vercel](https://vercel.com/) atau [Netlify](https://www.netlify.com/).
-2. Framework preset: **Vite**. Perintah build: `npm run build`, folder keluaran: **`dist`**.
-3. Jangan set `VITE_BASE_URL` di panel environment (biarkan kosong) agar routing dan aset memakai root domain proyek Anda.
-
 ## Struktur Halaman
 
 | Path | Halaman | Keterangan |
 |------|---------|------------|
+| `/welcome` | Masuk | Email atau nama pengguna (hanya jika Supabase dikonfigurasi) |
 | `/` | Kalkulator | Input parameter dan lihat hasil simulasi |
 | `/saved` | Tersimpan | Daftar simulasi yang sudah disimpan |
 | `/compare?ids=...` | Bandingkan | Perbandingan simulasi side-by-side |

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   type CalcMode,
@@ -7,11 +7,13 @@ import {
   type CalcResults,
   type SavedCalculation,
   calculate,
-  loadSavedCalculations,
   formatRupiah,
   formatNumber,
   formatInputDisplay,
 } from "../types";
+import { useSimulations } from "../context/SimulationsContext";
+import { downloadCompareSimulationPdf } from "../lib/pdfSummary";
+import { PdfDownloadRow } from "../components/PdfDownloadRow";
 
 function InlineRupiah({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
@@ -138,17 +140,28 @@ const resultFields: ResultField[] = [
 export default function Compare() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { calculations, loading, usingCloud } = useSimulations();
+
+  const idsParam = searchParams.get("ids") || "";
+  const ids = useMemo(() => idsParam.split(",").filter(Boolean), [idsParam]);
 
   const initialItems = useMemo(() => {
-    const idsParam = searchParams.get("ids") || "";
-    const ids = idsParam.split(",").filter(Boolean);
-    const all = loadSavedCalculations();
-    return ids.map((id) => all.find((c) => c.id === id)).filter(Boolean) as SavedCalculation[];
-  }, [searchParams]);
+    return ids.map((id) => calculations.find((c) => c.id === id)).filter(Boolean) as SavedCalculation[];
+  }, [ids, calculations]);
 
-  const [columns, setColumns] = useState<CalcInputs[]>(() =>
-    initialItems.map((item) => ({ ...item.inputs }))
-  );
+  const [columns, setColumns] = useState<CalcInputs[]>([]);
+
+  useEffect(() => {
+    const idList = idsParam.split(",").filter(Boolean);
+    const items = idList
+      .map((id) => calculations.find((c) => c.id === id))
+      .filter(Boolean) as SavedCalculation[];
+    if (items.length >= 2) {
+      void Promise.resolve().then(() => {
+        setColumns(items.map((item) => ({ ...item.inputs })));
+      });
+    }
+  }, [idsParam, calculations]);
 
   const updateColumn = (colIdx: number, key: keyof CalcInputs, value: string) => {
     setColumns((prev) => {
@@ -172,7 +185,7 @@ export default function Compare() {
     return pairs;
   }, [columns, results]);
 
-  if (initialItems.length < 2) {
+  if (ids.length < 2) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 text-center">
         <h2 className="text-xl font-bold text-slate-800 mb-2">Perbandingan</h2>
@@ -181,6 +194,32 @@ export default function Compare() {
           Ke Halaman Tersimpan
         </button>
       </div>
+    );
+  }
+
+  if (usingCloud && loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center text-slate-500 text-sm">Memuat simulasi…</div>
+    );
+  }
+
+  if (initialItems.length < 2) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12 text-center">
+        <h2 className="text-xl font-bold text-slate-800 mb-2">Perbandingan</h2>
+        <p className="text-sm text-slate-400 mb-4">
+          Satu atau lebih simulasi tidak ditemukan (mungkin sudah dihapus). Pilih ulang dari halaman Tersimpan.
+        </p>
+        <button onClick={() => navigate("/saved")} className="py-2.5 px-6 rounded-lg font-semibold text-sm bg-maybank-dark text-white hover:bg-maybank-blue transition-all">
+          Ke Halaman Tersimpan
+        </button>
+      </div>
+    );
+  }
+
+  if (columns.length < 2) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center text-slate-500 text-sm">Menyiapkan tabel…</div>
     );
   }
 
@@ -203,6 +242,22 @@ export default function Compare() {
           </svg>
           Kembali
         </button>
+      </div>
+
+      <div className="mb-5">
+        <PdfDownloadRow
+          onDownload={() =>
+            downloadCompareSimulationPdf(
+              "perbandingan-simulasi-kredit",
+              "Perbandingan Simulasi Kredit",
+              validPairs.map(({ inputs, results }) => ({
+                label: inputs.name || "Simulasi",
+                inputs,
+                results,
+              }))
+            )
+          }
+        />
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">

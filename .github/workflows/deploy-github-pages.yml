@@ -26,6 +26,9 @@ jobs:
       - name: Build
         env:
           VITE_BASE_URL: /hitung-cicilan-mobil/
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_AUTH_IDENTIFIER_PEPPER: ${{ secrets.VITE_AUTH_IDENTIFIER_PEPPER }}
         run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

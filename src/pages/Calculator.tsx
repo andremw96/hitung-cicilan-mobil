@@ -1,18 +1,19 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   type CalcMode,
   type AsuransiMode,
   type CalcInputs,
   calculate,
-  saveCalculation,
-  updateCalculation,
-  loadSavedCalculations,
   formatRupiah,
   formatNumber,
   formatInputDisplay,
   parseInputNumber,
 } from "../types";
+import { useSimulations } from "../context/SimulationsContext";
+import { newSavedCalculationId } from "../lib/newSavedId";
+import { downloadSingleSimulationPdf } from "../lib/pdfSummary";
+import { PdfDownloadRow } from "../components/PdfDownloadRow";
 
 function RupiahInput({
   label,
@@ -141,32 +142,63 @@ function ResultRow({
 export default function Calculator() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { calculations, saveCalculation, updateCalculation } = useSimulations();
 
-  const loaded = useMemo(() => {
-    const loadId = searchParams.get("load");
-    if (!loadId) return null;
-    const all = loadSavedCalculations();
-    return all.find((c) => c.id === loadId) ?? null;
-  }, [searchParams]);
+  const loadId = searchParams.get("load");
+  const loadedCalc = useMemo(
+    () => (loadId ? calculations.find((c) => c.id === loadId) ?? null : null),
+    [loadId, calculations]
+  );
+  const lastAppliedLoadId = useRef<string | null>(null);
 
-  const [editId, setEditId] = useState<string | null>(loaded?.id ?? null);
-  const [name, setName] = useState(loaded?.inputs.name ?? "");
-  const [otr, setOtr] = useState(loaded?.inputs.otr ?? "");
-  const [calcMode, setCalcMode] = useState<CalcMode>(loaded?.inputs.calcMode ?? "total_dp");
-  const [dpPercent, setDpPercent] = useState(loaded?.inputs.dpPercent ?? "");
-  const [dpAmount, setDpAmount] = useState(loaded?.inputs.dpAmount ?? "");
-  const [totalDpInput, setTotalDpInput] = useState(loaded?.inputs.totalDpInput ?? "");
-  const [rateFix, setRateFix] = useState(loaded?.inputs.rateFix ?? "");
-  const [asuransiMode, setAsuransiMode] = useState<AsuransiMode>(loaded?.inputs.asuransiMode ?? "pct_total");
-  const [asuransiPercent, setAsuransiPercent] = useState(loaded?.inputs.asuransiPercent ?? "");
-  const [asuransiPerYear, setAsuransiPerYear] = useState(loaded?.inputs.asuransiPerYear ?? "");
-  const [asuransiAmount, setAsuransiAmount] = useState(loaded?.inputs.asuransiAmount ?? "");
-  const [tenor, setTenor] = useState(loaded?.inputs.tenor ?? "");
-  const [administrasi, setAdministrasi] = useState(loaded?.inputs.administrasi ?? "");
-  const [creditLife, setCreditLife] = useState(loaded?.inputs.creditLife ?? "");
-  const [tjh, setTjh] = useState(loaded?.inputs.tjh ?? "");
-  const [capitalizeOnRisk, setCapitalizeOnRisk] = useState(loaded?.inputs.capitalizeOnRisk ?? "");
+  const [editId, setEditId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [otr, setOtr] = useState("");
+  const [calcMode, setCalcMode] = useState<CalcMode>("total_dp");
+  const [dpPercent, setDpPercent] = useState("");
+  const [dpAmount, setDpAmount] = useState("");
+  const [totalDpInput, setTotalDpInput] = useState("");
+  const [rateFix, setRateFix] = useState("");
+  const [asuransiMode, setAsuransiMode] = useState<AsuransiMode>("pct_total");
+  const [asuransiPercent, setAsuransiPercent] = useState("");
+  const [asuransiPerYear, setAsuransiPerYear] = useState("");
+  const [asuransiAmount, setAsuransiAmount] = useState("");
+  const [tenor, setTenor] = useState("");
+  const [administrasi, setAdministrasi] = useState("");
+  const [creditLife, setCreditLife] = useState("");
+  const [tjh, setTjh] = useState("");
+  const [capitalizeOnRisk, setCapitalizeOnRisk] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "updated">("idle");
+
+  useEffect(() => {
+    if (!loadId) {
+      lastAppliedLoadId.current = null;
+      return;
+    }
+    if (!loadedCalc || loadedCalc.id !== loadId) return;
+    if (lastAppliedLoadId.current === loadId) return;
+    lastAppliedLoadId.current = loadId;
+    const i = loadedCalc.inputs;
+    void Promise.resolve().then(() => {
+      setEditId(loadedCalc.id);
+      setName(i.name);
+      setOtr(i.otr);
+      setCalcMode(i.calcMode);
+      setDpPercent(i.dpPercent);
+      setDpAmount(i.dpAmount);
+      setTotalDpInput(i.totalDpInput);
+      setRateFix(i.rateFix);
+      setAsuransiMode(i.asuransiMode);
+      setAsuransiPercent(i.asuransiPercent);
+      setAsuransiPerYear(i.asuransiPerYear);
+      setAsuransiAmount(i.asuransiAmount);
+      setTenor(i.tenor);
+      setAdministrasi(i.administrasi);
+      setCreditLife(i.creditLife);
+      setTjh(i.tjh);
+      setCapitalizeOnRisk(i.capitalizeOnRisk);
+    });
+  }, [loadId, loadedCalc]);
 
   const inputs: CalcInputs = {
     name,
@@ -187,42 +219,46 @@ export default function Calculator() {
     capitalizeOnRisk,
   };
 
-  const results = useMemo(() => calculate(inputs), [
-    name, otr, calcMode, dpPercent, dpAmount, totalDpInput,
-    rateFix, asuransiMode, asuransiPercent, asuransiPerYear, asuransiAmount,
-    tenor, administrasi, creditLife, tjh, capitalizeOnRisk,
-  ]);
+  const results = calculate(inputs);
 
   const handleModeChange = useCallback((mode: CalcMode) => {
     setCalcMode(mode);
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!results) return;
-    if (editId) {
-      updateCalculation({
-        id: editId,
-        savedAt: new Date().toISOString(),
-        inputs,
-        results,
-      });
-      setSaveStatus("updated");
-    } else {
-      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-      saveCalculation({ id, savedAt: new Date().toISOString(), inputs, results });
-      setEditId(id);
-      setSaveStatus("saved");
+    try {
+      if (editId) {
+        await updateCalculation({
+          id: editId,
+          savedAt: new Date().toISOString(),
+          inputs,
+          results,
+        });
+        setSaveStatus("updated");
+      } else {
+        const id = newSavedCalculationId();
+        await saveCalculation({ id, savedAt: new Date().toISOString(), inputs, results });
+        setEditId(id);
+        setSaveStatus("saved");
+      }
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menyimpan");
     }
-    setTimeout(() => setSaveStatus("idle"), 2000);
   };
 
-  const handleSaveAsNew = () => {
+  const handleSaveAsNew = async () => {
     if (!results) return;
-    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-    saveCalculation({ id, savedAt: new Date().toISOString(), inputs, results });
-    setEditId(id);
-    setSaveStatus("saved");
-    setTimeout(() => setSaveStatus("idle"), 2000);
+    try {
+      const id = newSavedCalculationId();
+      await saveCalculation({ id, savedAt: new Date().toISOString(), inputs, results });
+      setEditId(id);
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menyimpan");
+    }
   };
 
   return (
@@ -468,7 +504,7 @@ export default function Calculator() {
                 <div className="pt-4 mt-3 border-t border-slate-100 space-y-2">
                   <div className="flex gap-2">
                     <button
-                      onClick={handleSave}
+                      onClick={() => void handleSave()}
                       disabled={!name.trim()}
                       className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
                         saveStatus === "saved" || saveStatus === "updated"
@@ -509,7 +545,7 @@ export default function Calculator() {
                   </div>
                   {editId && name.trim() && (
                     <button
-                      onClick={handleSaveAsNew}
+                      onClick={() => void handleSaveAsNew()}
                       className="w-full py-2.5 px-4 rounded-lg text-sm font-medium border border-dashed border-slate-300 text-slate-500 hover:bg-slate-50 hover:border-slate-400 transition-all flex items-center justify-center gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -518,6 +554,19 @@ export default function Calculator() {
                   )}
                   {!name.trim() && results && (
                     <p className="text-xs text-amber-600 px-1">Isi nama simulasi untuk menyimpan</p>
+                  )}
+
+                  {results && (
+                    <PdfDownloadRow
+                      onDownload={() =>
+                        downloadSingleSimulationPdf(
+                          `simulasi-kredit-${name.trim() || "tanpa-nama"}`,
+                          `Simulasi Kredit: ${name.trim() || "Tanpa nama"}`,
+                          inputs,
+                          results
+                        )
+                      }
+                    />
                   )}
                 </div>
               </div>
