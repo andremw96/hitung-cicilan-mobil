@@ -8,9 +8,15 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { getAuthRedirectUrl, isCloudEnabled } from "../lib/cloudConfig";
+import { getAuthRedirectUrl, getPasswordResetRedirectUrl, isCloudEnabled } from "../lib/cloudConfig";
 import { getSupabase } from "../lib/supabase";
 import { deriveIdentifierPassword, normalizeIdentifierInput } from "../lib/authIdentifier";
+
+type ChangePasswordInput = {
+  newPassword: string;
+  /** Wajib jika akun memakai kata sandi eksplisit (bukan hanya Google / masuk cepat). */
+  currentPassword?: string;
+};
 
 type AuthContextValue = {
   session: Session | null;
@@ -25,6 +31,12 @@ type AuthContextValue = {
     identifier: string,
     password: string
   ) => Promise<{ error: Error | null }>;
+  /** Ganti kata sandi untuk pengguna yang sudah masuk. */
+  changePassword: (input: ChangePasswordInput) => Promise<{ error: Error | null }>;
+  /** Kirim tautan reset kata sandi ke email. Hanya berlaku untuk akun email nyata. */
+  sendPasswordReset: (email: string) => Promise<{ error: Error | null }>;
+  /** Tetapkan kata sandi baru setelah mengikuti tautan pemulihan. */
+  setNewPassword: (newPassword: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 };
 
@@ -230,6 +242,113 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   }, []);
 
+  const changePassword = useCallback(
+    async ({ newPassword, currentPassword }: ChangePasswordInput) => {
+      if (!cloudEnabled) return { error: new Error("Cloud tidak diaktifkan") };
+      const sb = getSupabase();
+      if (!sb) return { error: new Error("Supabase tidak tersedia") };
+
+      const trimmed = newPassword.trim();
+      if (trimmed.length < 6) {
+        return { error: new Error("Kata sandi baru minimal 6 karakter.") };
+      }
+
+      const {
+        data: { user },
+        error: userErr,
+      } = await sb.auth.getUser();
+      if (userErr || !user?.email) {
+        return { error: new Error(userErr?.message ?? "Tidak ada sesi.") };
+      }
+
+      const meta = user.user_metadata as { uses_explicit_password?: boolean } | undefined;
+      const needsCurrent = Boolean(meta?.uses_explicit_password);
+
+      if (needsCurrent) {
+        const cur = currentPassword?.trim() ?? "";
+        if (!cur) {
+          return { error: new Error("Masukkan kata sandi saat ini.") };
+        }
+        const { error: verifyErr } = await sb.auth.signInWithPassword({
+          email: user.email,
+          password: cur,
+        });
+        if (verifyErr) {
+          return { error: new Error("Kata sandi saat ini salah.") };
+        }
+      }
+
+      const { error } = await sb.auth.updateUser({
+        password: trimmed,
+        data: {
+          ...user.user_metadata,
+          uses_explicit_password: true,
+        },
+      });
+      return { error: error ? new Error(error.message) : null };
+    },
+    [cloudEnabled]
+  );
+
+  const sendPasswordReset = useCallback(
+    async (email: string) => {
+      if (!cloudEnabled) return { error: new Error("Cloud tidak diaktifkan") };
+      const sb = getSupabase();
+      if (!sb) return { error: new Error("Supabase tidak tersedia") };
+
+      const trimmed = email.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        return { error: new Error("Masukkan alamat email yang valid.") };
+      }
+      if (trimmed.endsWith("@users.hitung-cicilan.local")) {
+        return {
+          error: new Error(
+            "Akun nama pengguna tidak memiliki email. Gunakan akun email untuk mereset kata sandi."
+          ),
+        };
+      }
+
+      const redirectTo = getPasswordResetRedirectUrl();
+      const { error } = await sb.auth.resetPasswordForEmail(trimmed, { redirectTo });
+      return { error: error ? new Error(error.message) : null };
+    },
+    [cloudEnabled]
+  );
+
+  const setNewPassword = useCallback(
+    async (newPassword: string) => {
+      if (!cloudEnabled) return { error: new Error("Cloud tidak diaktifkan") };
+      const sb = getSupabase();
+      if (!sb) return { error: new Error("Supabase tidak tersedia") };
+
+      const trimmed = newPassword.trim();
+      if (trimmed.length < 6) {
+        return { error: new Error("Kata sandi baru minimal 6 karakter.") };
+      }
+
+      const {
+        data: { user },
+      } = await sb.auth.getUser();
+      if (!user) {
+        return {
+          error: new Error(
+            "Sesi pemulihan tidak ditemukan. Buka ulang tautan pemulihan dari email Anda."
+          ),
+        };
+      }
+
+      const { error } = await sb.auth.updateUser({
+        password: trimmed,
+        data: {
+          ...user.user_metadata,
+          uses_explicit_password: true,
+        },
+      });
+      return { error: error ? new Error(error.message) : null };
+    },
+    [cloudEnabled]
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -239,6 +358,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithGoogle,
       signInWithIdentifier,
       signInWithIdentifierAndPassword,
+      changePassword,
+      sendPasswordReset,
+      setNewPassword,
       signOut,
     }),
     [
@@ -248,6 +370,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithGoogle,
       signInWithIdentifier,
       signInWithIdentifierAndPassword,
+      changePassword,
+      sendPasswordReset,
+      setNewPassword,
       signOut,
     ]
   );

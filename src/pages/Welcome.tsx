@@ -9,14 +9,18 @@ export default function Welcome() {
     loading,
     cloudEnabled,
     signInWithGoogle,
-    signInWithIdentifier,
     signInWithIdentifierAndPassword,
+    sendPasswordReset,
   } = useAuth();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [usePassword, setUsePassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotBusy, setForgotBusy] = useState(false);
+  const [forgotMsg, setForgotMsg] = useState<string | null>(null);
+  const [forgotOk, setForgotOk] = useState(false);
 
   useEffect(() => {
     if (!cloudEnabled || loading) return;
@@ -34,13 +38,40 @@ export default function Welcome() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg(null);
+
+    const pw = password.trim();
+    if (pw.length < 6) {
+      setMsg("Kata sandi wajib diisi, minimal 6 karakter.");
+      return;
+    }
+
     setBusy(true);
-    const { error } = usePassword
-      ? await signInWithIdentifierAndPassword(identifier, password)
-      : await signInWithIdentifier(identifier);
+    const { error } = await signInWithIdentifierAndPassword(identifier, password);
     setBusy(false);
     if (error) setMsg(error.message);
     else navigate("/", { replace: true });
+  };
+
+  const onForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotMsg(null);
+    setForgotOk(false);
+    setForgotBusy(true);
+    const { error } = await sendPasswordReset(forgotEmail);
+    setForgotBusy(false);
+    if (error) {
+      setForgotMsg(error.message);
+      return;
+    }
+    setForgotOk(true);
+  };
+
+  const openForgot = () => {
+    const guess = identifier.trim();
+    setForgotEmail(guess.includes("@") ? guess : "");
+    setForgotMsg(null);
+    setForgotOk(false);
+    setShowForgot(true);
   };
 
   if (!cloudEnabled) {
@@ -134,34 +165,22 @@ export default function Welcome() {
               className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none"
             />
 
-            <label className="flex items-center gap-2 cursor-pointer select-none">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Kata sandi</label>
               <input
-                type="checkbox"
-                checked={usePassword}
-                onChange={(e) => {
-                  setUsePassword(e.target.checked);
-                  if (!e.target.checked) setPassword("");
-                }}
-                className="rounded border-slate-300 text-amber-600 focus:ring-amber-400"
+                type="password"
+                required
+                minLength={6}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Minimal 6 karakter"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none"
               />
-              <span className="text-xs font-medium text-slate-600">Gunakan kata sandi saya</span>
-            </label>
-
-            {usePassword && (
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Kata sandi</label>
-                <input
-                  type="password"
-                  required={usePassword}
-                  autoComplete={usePassword ? "current-password" : "off"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimal 6 karakter"
-                  minLength={6}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none"
-                />
-              </div>
-            )}
+              <p className="text-[11px] text-slate-400 mt-1.5">
+                Jika akun belum ada, akun akan dibuat otomatis memakai kata sandi ini.
+              </p>
+            </div>
 
             <button
               type="submit"
@@ -170,9 +189,66 @@ export default function Welcome() {
             >
               {busy ? "Memproses…" : "Masuk"}
             </button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={openForgot}
+                className="text-xs text-maybank-dark font-medium hover:underline"
+              >
+                Lupa kata sandi?
+              </button>
+            </div>
           </form>
 
           {msg && <p className="text-xs text-center text-red-600">{msg}</p>}
+
+          {showForgot && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-800">Reset kata sandi</h2>
+                  <p className="text-[11px] text-slate-500">
+                    Kami akan mengirim tautan pemulihan ke email Anda. Hanya akun yang terdaftar dengan email nyata
+                    (bukan nama pengguna) yang dapat mereset kata sandi.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(false)}
+                  className="text-xs text-slate-400 hover:text-slate-600"
+                  aria-label="Tutup"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={(e) => void onForgotSubmit(e)} className="space-y-2">
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="nama@email.com"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-slate-800 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={forgotBusy}
+                  className="w-full py-2 rounded-lg font-semibold text-xs bg-maybank-dark text-white hover:bg-maybank-blue transition-colors disabled:opacity-50"
+                >
+                  {forgotBusy ? "Mengirim…" : "Kirim tautan reset"}
+                </button>
+                {forgotMsg && <p className="text-[11px] text-center text-red-600">{forgotMsg}</p>}
+                {forgotOk && (
+                  <p className="text-[11px] text-center text-emerald-600">
+                    Tautan reset dikirim. Periksa kotak masuk (dan folder spam).
+                  </p>
+                )}
+              </form>
+            </div>
+          )}
 
           <div className="pt-1">
             <button

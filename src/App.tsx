@@ -3,6 +3,8 @@ import Calculator from "./pages/Calculator";
 import SavedList from "./pages/SavedList";
 import Compare from "./pages/Compare";
 import Welcome from "./pages/Welcome";
+import Account from "./pages/Account";
+import ResetPassword from "./pages/ResetPassword";
 import { useAuth } from "./context/AuthContext";
 
 function HeaderAccount() {
@@ -40,6 +42,12 @@ function HeaderAccount() {
       <span className="text-xs text-slate-200 max-w-[140px] truncate hidden sm:inline" title={displayName}>
         {displayName}
       </span>
+      <NavLink
+        to="/account"
+        className="px-3 py-2 rounded-md text-xs font-semibold bg-white/10 text-white hover:bg-white/20 transition-colors whitespace-nowrap"
+      >
+        Akun
+      </NavLink>
       <button
         type="button"
         onClick={() => void handleSignOut()}
@@ -143,10 +151,12 @@ export default function App() {
     <BrowserRouter basename={basename}>
       <Routes>
         <Route path="/welcome" element={<Welcome />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route element={<Layout />}>
           <Route path="/" element={<Calculator />} />
           <Route path="/saved" element={<SavedList />} />
           <Route path="/compare" element={<Compare />} />
+          <Route path="/account" element={<Account />} />
         </Route>
       </Routes>
     </BrowserRouter>

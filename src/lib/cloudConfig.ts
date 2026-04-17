@@ -12,6 +12,13 @@ export function getAuthRedirectUrl(): string {
   return new URL(path, window.location.origin).href;
 }
 
+/** Password-recovery return URL (must match Supabase Auth redirect allow list). */
+export function getPasswordResetRedirectUrl(): string {
+  const base = import.meta.env.BASE_URL;
+  const path = `${base.replace(/\/?$/, "")}/reset-password`;
+  return new URL(path, window.location.origin).href;
+}
+
 /** Full URL to open the calculator with ?load= for a saved id (works with GitHub Pages base). */
 export function buildCalculatorLoadUrl(id: string): string {
   const base = import.meta.env.BASE_URL;
