@@ -1,48 +1,48 @@
-name: Deploy GitHub Pages
+# name: Deploy GitHub Pages
 
-on:
-  push:
-    branches: [master, main]
+# on:
+#   push:
+#     branches: [master, main]
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+# permissions:
+#   contents: read
+#   pages: write
+#   id-token: write
 
-concurrency:
-  group: pages
-  cancel-in-progress: true
+# concurrency:
+#   group: pages
+#   cancel-in-progress: true
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    # Required so "Environment secrets" under github-pages are available here.
-    # Repository secrets (repo Settings → Secrets) work without this line.
-    environment: github-pages
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - name: Build
-        env:
-          VITE_BASE_URL: /hitung-cicilan-mobil/
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_AUTH_IDENTIFIER_PEPPER: ${{ secrets.VITE_AUTH_IDENTIFIER_PEPPER }}
-        run: npm run build
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+#     # Required so "Environment secrets" under github-pages are available here.
+#     # Repository secrets (repo Settings → Secrets) work without this line.
+#     environment: github-pages
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: actions/setup-node@v4
+#         with:
+#           node-version: "22"
+#           cache: npm
+#       - run: npm ci
+#       - name: Build
+#         env:
+#           VITE_BASE_URL: /hitung-cicilan-mobil/
+#           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+#           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+#           VITE_AUTH_IDENTIFIER_PEPPER: ${{ secrets.VITE_AUTH_IDENTIFIER_PEPPER }}
+#         run: npm run build
+#       - uses: actions/upload-pages-artifact@v3
+#         with:
+#           path: dist
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+#   deploy:
+#     needs: build
+#     runs-on: ubuntu-latest
+#     environment:
+#       name: github-pages
+#       url: ${{ steps.deployment.outputs.page_url }}
+#     steps:
+#       - id: deployment
+#         uses: actions/deploy-pages@v4
