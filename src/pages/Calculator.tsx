@@ -167,7 +167,7 @@ export default function Calculator() {
   const [administrasi, setAdministrasi] = useState("");
   const [creditLife, setCreditLife] = useState("");
   const [tjh, setTjh] = useState("");
-  const [capitalizeOnRisk, setCapitalizeOnRisk] = useState("");
+  const [useCOR, setUseCOR] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "updated">("idle");
 
   useEffect(() => {
@@ -196,7 +196,7 @@ export default function Calculator() {
       setAdministrasi(i.administrasi);
       setCreditLife(i.creditLife);
       setTjh(i.tjh);
-      setCapitalizeOnRisk(i.capitalizeOnRisk);
+      setUseCOR(i.useCOR ?? false);
     });
   }, [loadId, loadedCalc]);
 
@@ -216,7 +216,7 @@ export default function Calculator() {
     administrasi,
     creditLife,
     tjh,
-    capitalizeOnRisk,
+    useCOR,
   };
 
   const results = calculate(inputs);
@@ -375,20 +375,32 @@ export default function Calculator() {
                     </button>
                   ))}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    {asuransiMode === "pct_total" && (
-                      <PercentInput label="Total %" value={asuransiPercent} onChange={setAsuransiPercent} placeholder="5.37" helpText="Total persentase dari OTR" />
-                    )}
-                    {asuransiMode === "pct_per_year" && (
-                      <PercentInput label="% per Tahun" value={asuransiPerYear} onChange={setAsuransiPerYear} placeholder="1.79" helpText={`× ${tenor || "?"} tahun = ${((parseFloat(asuransiPerYear) || 0) * (parseInt(tenor) || 0)).toFixed(2)}% total`} />
-                    )}
-                    {asuransiMode === "rupiah" && (
-                      <RupiahInput label="Nominal Asuransi" value={asuransiAmount} onChange={setAsuransiAmount} placeholder="17205480" helpText="Total biaya asuransi" />
-                    )}
-                  </div>
-                  <RupiahInput label="Capitalize on Risk" value={capitalizeOnRisk} onChange={setCapitalizeOnRisk} placeholder="0" helpText="Biaya risiko ditambahkan ke plafon" />
-                </div>
+                {asuransiMode === "pct_total" && (
+                  <PercentInput label="Total %" value={asuransiPercent} onChange={setAsuransiPercent} placeholder="5.37" helpText="Total persentase dari OTR" />
+                )}
+                {asuransiMode === "pct_per_year" && (
+                  <PercentInput label="% per Tahun" value={asuransiPerYear} onChange={setAsuransiPerYear} placeholder="1.79" helpText={`× ${tenor || "?"} tahun = ${((parseFloat(asuransiPerYear) || 0) * (parseInt(tenor) || 0)).toFixed(2)}% total`} />
+                )}
+                {asuransiMode === "rupiah" && (
+                  <RupiahInput label="Nominal Asuransi" value={asuransiAmount} onChange={setAsuransiAmount} placeholder="17205480" helpText="Total biaya asuransi" />
+                )}
+                <label className="flex items-center gap-2 cursor-pointer select-none mt-3">
+                  <input
+                    type="checkbox"
+                    checked={useCOR}
+                    onChange={(e) => setUseCOR(e.target.checked)}
+                    className="rounded border-slate-300 text-amber-600 focus:ring-amber-400"
+                  />
+                  <span className="text-xs font-medium text-slate-600">Capitalize on Risk</span>
+                  {useCOR && results && (
+                    <span className="text-xs text-slate-400 ml-auto font-mono tabular-nums">{formatRupiah(results.corVal)}</span>
+                  )}
+                </label>
+                {useCOR && (
+                  <p className="text-[11px] text-slate-400 mt-1 ml-6">
+                    Asuransi % × PH Unit, ditambahkan ke plafon kredit.
+                  </p>
+                )}
               </div>
             </div>
           </div>

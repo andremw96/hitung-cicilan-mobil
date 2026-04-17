@@ -17,7 +17,10 @@ export interface CalcInputs {
   administrasi: string;
   creditLife: string;
   tjh: string;
-  capitalizeOnRisk: string;
+  /** Hitung Capitalize on Risk (asuransi % × PH Unit) dan tambahkan ke plafon. */
+  useCOR?: boolean;
+  /** @deprecated COR is now auto-calculated. Kept for backward compat with old saved data. */
+  capitalizeOnRisk?: string;
 }
 
 export interface CalcResults {
@@ -119,17 +122,21 @@ export function calculate(inputs: CalcInputs): CalcResults | null {
   const adminVal = parseInputNumber(inputs.administrasi);
   const creditLifeVal = parseInputNumber(inputs.creditLife);
   const tjhVal = parseInputNumber(inputs.tjh);
-  const corVal = parseInputNumber(inputs.capitalizeOnRisk);
+  const useCOR = inputs.useCOR ?? false;
 
   if (otrVal <= 0 || tenorMonths <= 0) return null;
 
   let asuransiCash: number;
+  let asuransiPctEffective: number;
   if (inputs.asuransiMode === "rupiah") {
     asuransiCash = parseInputNumber(inputs.asuransiAmount);
+    asuransiPctEffective = otrVal > 0 ? asuransiCash / otrVal : 0;
   } else if (inputs.asuransiMode === "pct_per_year") {
     const perYear = parseFloat(inputs.asuransiPerYear) / 100 || 0;
-    asuransiCash = otrVal * perYear * tenorYears;
+    asuransiPctEffective = perYear * tenorYears;
+    asuransiCash = otrVal * asuransiPctEffective;
   } else {
+    asuransiPctEffective = asuransiPct;
     asuransiCash = otrVal * asuransiPct;
   }
   const K = (1 + rateVal * tenorYears) / tenorMonths;
@@ -143,14 +150,25 @@ export function calculate(inputs: CalcInputs): CalcResults | null {
     pureDP = parseInputNumber(inputs.dpAmount);
   } else {
     const totalDpVal = parseInputNumber(inputs.totalDpInput);
-    const numerator =
-      totalDpVal - otrVal * K - corVal * K - asuransiCash - adminVal - creditLifeVal - tjhVal;
-    const denominator = 1 - K;
-    if (Math.abs(denominator) < 1e-10) return null;
-    pureDP = numerator / denominator;
+    if (useCOR) {
+      // COR = asuransiPctEffective × phUnit; plafonKredit = phUnit × (1 + asuransiPctEffective)
+      const Keff = (1 + asuransiPctEffective) * K;
+      const numerator =
+        totalDpVal - otrVal * Keff - asuransiCash - adminVal - creditLifeVal - tjhVal;
+      const denominator = 1 - Keff;
+      if (Math.abs(denominator) < 1e-10) return null;
+      pureDP = numerator / denominator;
+    } else {
+      const numerator =
+        totalDpVal - otrVal * K - asuransiCash - adminVal - creditLifeVal - tjhVal;
+      const denominator = 1 - K;
+      if (Math.abs(denominator) < 1e-10) return null;
+      pureDP = numerator / denominator;
+    }
   }
 
   const phUnit = otrVal - pureDP;
+  const corVal = useCOR ? asuransiPctEffective * phUnit : 0;
   const plafonKredit = phUnit + corVal;
   const installment = plafonKredit * K;
   const installmentRounded = Math.round(installment / 100000) * 100000;

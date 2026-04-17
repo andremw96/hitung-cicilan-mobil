@@ -99,7 +99,6 @@ const inputFields: InputField[] = [
   { key: "tenor", label: "Tenor", type: "tenor", inputKey: "tenor" },
   { key: "asuransi_mode", label: "Mode Asuransi", type: "asuransi_mode", inputKey: "asuransiMode" },
   { key: "asuransi_value", label: "Nilai Asuransi", type: "asuransi_value", inputKey: "asuransiPercent" },
-  { key: "capitalizeOnRisk", label: "Cap. on Risk", type: "rupiah", inputKey: "capitalizeOnRisk" },
   { key: "administrasi", label: "Administrasi", type: "rupiah", inputKey: "administrasi" },
   { key: "creditLife", label: "Credit Life", type: "rupiah", inputKey: "creditLife" },
   { key: "tjh", label: "TJH", type: "rupiah", inputKey: "tjh" },
@@ -298,13 +297,13 @@ export default function Compare() {
                   {columns.map((col, ci) => (
                     <td key={ci} className="py-2 px-3 text-center">
                       {field.type === "rupiah" && (
-                        <InlineRupiah value={col[field.inputKey]} onChange={(v) => updateColumn(ci, field.inputKey, v)} />
+                        <InlineRupiah value={String(col[field.inputKey] ?? "")} onChange={(v) => updateColumn(ci, field.inputKey, v)} />
                       )}
                       {field.type === "percent" && (
-                        <InlinePercent value={col[field.inputKey]} onChange={(v) => updateColumn(ci, field.inputKey, v)} />
+                        <InlinePercent value={String(col[field.inputKey] ?? "")} onChange={(v) => updateColumn(ci, field.inputKey, v)} />
                       )}
                       {field.type === "tenor" && (
-                        <InlineNumber value={col[field.inputKey]} onChange={(v) => updateColumn(ci, field.inputKey, v)} suffix="thn" />
+                        <InlineNumber value={String(col[field.inputKey] ?? "")} onChange={(v) => updateColumn(ci, field.inputKey, v)} suffix="thn" />
                       )}
                       {field.type === "dp_mode" && (
                         <ModeToggle<CalcMode> value={col.calcMode} onChange={(v) => updateColumn(ci, "calcMode", v)} options={[["dp_percent", "%"], ["dp_amount", "Rp"], ["total_dp", "Total"]]} />
@@ -312,7 +311,7 @@ export default function Compare() {
                       {field.type === "dp_value" && (
                         col.calcMode === "dp_percent"
                           ? <InlinePercent value={col.dpPercent} onChange={(v) => updateColumn(ci, "dpPercent", v)} />
-                          : <InlineRupiah value={col[dpValueKey(col.calcMode)]} onChange={(v) => updateColumn(ci, dpValueKey(col.calcMode), v)} />
+                          : <InlineRupiah value={String(col[dpValueKey(col.calcMode)] ?? "")} onChange={(v) => updateColumn(ci, dpValueKey(col.calcMode), v)} />
                       )}
                       {field.type === "asuransi_mode" && (
                         <ModeToggle<AsuransiMode> value={col.asuransiMode ?? "pct_total"} onChange={(v) => updateColumn(ci, "asuransiMode", v)} options={[["pct_total", "% Total"], ["pct_per_year", "%/Thn"], ["rupiah", "Rp"]]} />
